@@ -1,12 +1,43 @@
-## Welcome to GitHub Pages
+# 欢迎来到John LIU的图神经网络学习笔记
 
-You can use the [editor on GitHub](https://github.com/John1liu/PyG-Learning-Notes/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+本篇笔记将主要采用简体中文进行记录，主要涵括内容有：
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+1. DGL以及OGB环境安装及配置
+2. 基于DGL的基本模型搭建过程
+3. 基于OGB的数据集使用
+4. 后期考虑添加一些经典论文的讲解和复现 ...
 
-### Markdown
+本文所主要参考的资料有：
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+1. [DGL](https://docs.dgl.ai/guide_cn/index.html)
+2. [OGB](https://ogb.stanford.edu/)
+
+本篇笔记所有权归澳门大学智慧城市物联网国家重点实验室智能交通课题组所有.
+
+## 环境配置
+
+工欲善其事，必先利其器。装环境对于每一个研究人员来说都是一件非常disgusting的事情，在此我将会给出一个非常一劳永逸的环境安装方法。
+
+所需安装的工具如下：
+
+1. 一台带有显卡的电脑（比如我的会发光的3090...）
+2. Anaconda
+3. CUDA & CUDANN
+4. PyTorch
+5. DGL
+6. OGB
+
+对于Anaconda + CUDA + PyTorch的安装过程，在此建议参考此篇博客[安装](https://blog.csdn.net/u012369535/article/details/106950286/)。
+
+此过程需要特别注意：
+
+1. 在Anaconda安装时需要选择合适的Python版本，目前PyTorch只可以支持到Python 3.8，在此建议安装Python 3.8.
+2. 安装CUDA过程中需要先通过'nvidia-msi'命令查看显卡驱动情况，[此处](https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html)查看对应所可以安装的CUDA版本情况。
+3. 基于目前CUDA 11.0+并没有合适的CUDANN和DGL同时支持的能力，在此建议安装CUDA 10.2，虽然老一些，但是稳定很多。
+
+对于DGL的安装，建议直接通过官网介绍进行安装，[链接在此](https://www.dgl.ai/pages/start.html)。切记需要选择合适的CUDA及Python版本，另外需要提前安装[VC2015 Redistributable](https://www.microsoft.com/en-us/download/details.aspx?id=48145)。
+
+对于OGB的安装，还是官网安装方法更方便，[链接在此](https://ogb.stanford.edu/docs/home/)
 
 ```markdown
 Syntax highlighted code block
@@ -25,13 +56,3 @@ Syntax highlighted code block
 
 [Link](url) and ![Image](src)
 ```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/John1liu/PyG-Learning-Notes/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
