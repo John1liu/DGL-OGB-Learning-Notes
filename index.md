@@ -29,6 +29,8 @@
 
 对于Anaconda + CUDA + PyTorch的安装过程，在此建议参考此篇博客[安装](https://blog.csdn.net/u012369535/article/details/106950286/)。
 
+对于该部分环境的配置，我强烈建议使用Anaconda和Jupyter来进行程序的编写，Jupyter可以将文本和代码结合，用过都说好，安装方法也极其简单，可以通过Anaconda Navigator来进行傻瓜式安装和打开。
+
 此过程需要特别注意：
 
 1. 在Anaconda安装时需要选择合适的Python版本，目前PyTorch只可以支持到Python 3.8，在此建议安装Python 3.8.
@@ -38,6 +40,12 @@
 对于DGL的安装，建议直接通过官网介绍进行安装，[链接在此](https://www.dgl.ai/pages/start.html)。切记需要选择合适的CUDA及Python版本，另外需要提前安装[VC2015 Redistributable](https://www.microsoft.com/en-us/download/details.aspx?id=48145)。
 
 对于OGB的安装，还是官网安装方法更方便，[链接在此](https://ogb.stanford.edu/docs/home/)
+
+## Deep Graph Library (DGL)
+
+Why is DGL not PyG？
+
+PyG太麻烦，另外维护的人太少了，仅此而已，听话，用DGL，API足够用。
 
 ```markdown
 Syntax highlighted code block
