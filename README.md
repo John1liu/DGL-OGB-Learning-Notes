@@ -1,2 +1,3 @@
 # DGL&OGB-Learning-Notes
-It is just the personal learning notes of PyG documentation. I would like to create a new blog when I finish the notes in Github. If you are interesting about it, I think we will better to have a discussion.
+
+笔记内容可以通过https://john1liu.github.io/DGL-OGB-Learning-Notes/ 来进行浏览。
