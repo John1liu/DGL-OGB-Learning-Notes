@@ -64,21 +64,18 @@ DGL在命名空间 dgl.function 中实现了常用的消息函数和聚合函数
 例如，要对源节点的 hu 特征和目标节点的 hv 特征求和， 然后将结果保存在边的 he 特征上，用户可以使用内置函数
 
 ```markdown
-
 dgl.function.u_add_v('hu', 'hv', 'he')
 ```
 
 DGL支持内置的聚合函数 sum、 max、 min 和 mean 操作。 聚合函数通常有两个参数，它们的类型都是字符串。一个用于指定 mailbox 中的字段名，一个用于指示目标节点特征的字段名， 例如， 
 
 ```markdown
-
 dgl.function.sum('m', 'h')
 ```
 
 在DGL中，也可以在不涉及消息传递的情况下，通过 apply_edges() 单独调用逐边计算。 apply_edges() 的参数是一个消息函数。并且在默认情况下，这个接口将更新所有的边。例如：
 
 ```markdown
-
 import dgl.function as fn
 graph.apply_edges(fn.u_add_v('el', 'er', 'e'))
 ```
@@ -86,7 +83,6 @@ graph.apply_edges(fn.u_add_v('el', 'er', 'e'))
 updaste_all() 的参数是一个消息函数、一个聚合函数和一个更新函数。示例正确用法如下：
 
 ```markdown
-
 def updata_all_example(graph):
     # 在graph.ndata['ft']中存储结果
     graph.update_all(fn.u_mul_e('ft', 'a', 'm'),
@@ -100,14 +96,13 @@ def updata_all_example(graph):
 
 基于以上内容，DGL优化了消息传递的内存消耗和计算速度。利用这些优化的一个常见实践是通过基于内置函数的 update_all() 来开发消息传递功能。
 
-**2.1.1 线性拆分**
+#### 2.1.1 线性拆分
 
 有一个以下操作：拼接源节点和目标节点特征， 然后应用一个线性层，即 W×(u||v)。 源节点和目标节点特征维数较高，而线性层输出维数较低。
 
 建议的实现是将线性操作分成两部分，一个应用于 源 节点特征，另一个应用于 目标 节点特征。 在最后一个阶段，在边上将以上两部分线性操作的结果相加，即执行 Wl×u+Wr×v， 因为 W×(u||v)=Wl×u+Wr×v，其中 Wl 和 Wr 分别是矩阵 W 的左半部分和右半部分：
 
 ```markdown
-
 import dgl.function as fn
 
 linear_src = nn.Parameter(torch.FloatTensor(size=(node_feat_dim, out_dim)))
@@ -119,7 +114,7 @@ g.dstdata.update({'out_dst': out_dst})
 g.apply_edges(fn.u_add_v('out_src', 'out_dst', 'out'))
 ```
 
-**2.1.2 加权重**
+#### 2.1.2 加权重
 
 一类常见的图神经网络建模的做法是在消息聚合前使用边的权重， 比如在 图注意力网络(GAT) 和一些 GCN的变种 。 DGL的处理方法是：
 
@@ -130,7 +125,6 @@ g.apply_edges(fn.u_add_v('out_src', 'out_dst', 'out'))
 例如：
 
 ```markdown
-
 import dgl.function as fn
 
 # 假定eweight是一个形状为(E, *)的张量，E是边的数量。
@@ -139,7 +133,7 @@ graph.update_all(fn.u_mul_e('ft', 'a', 'm'),
                  fn.sum('m', 'ft'))
 ```
 
-**2.1.3 异构图**
+#### 2.1.3 异构图
 
 异构图是包含不同类型的节点和边的图。 不同类型的节点和边常常具有不同类型的属性。这些属性旨在刻画每一种节点和边的特征。
 
@@ -156,7 +150,6 @@ graph.update_all(fn.u_mul_e('ft', 'a', 'm'),
 multi_update_all() 还接受一个字符串来表示跨类型整合函数，来指定整合不同关系聚合结果的方式。 这个整合方式可以是 sum、 min、 max、 mean 和 stack 中的一个。
 
 ```markdown
-
 import dgl.function as fn
 
 for c_etype in G.canonical_etypes:
@@ -177,27 +170,26 @@ return {ntype : G.nodes[ntype].data['h'] for ntype in G.ntypes}
 
 搭模型就像玩乐高，拼拼凑凑即可，没有太多的coding要求。对于DGL，NN模块就是我们要玩的东西，在这里选择继承PyTorch的NN模块！
 
-**2.2.1 构造函数**
+#### 2.2.1 构造函数
 
 先来看看构造函数！以GraphSAGE为例子，以下代码主要是完成设置选项与初始化参数的功能：
 
 ```markdown
-
 import torch.nn as nn
 
 from dgl.utils import expand_as_pair
 
 class SAGEConv(nn.Module):
     def __init__(self,
-                 in_feats, #输入维度，输入维度可以分为源节点特征维度和目标节点特征维度
-                 out_feats, #输出维度
-                 aggregator_type, #聚合类型，常用的聚合类型包括 mean、 sum、 max 和 min。一些模块可能会使用更加复杂的聚合函数，比如 lstm
+                 in_feats, # 输入维度，输入维度可以分为源节点特征维度和目标节点特征维度
+                 out_feats, # 输出维度
+                 aggregator_type, # 聚合类型，常用的聚合类型包括 mean、 sum、 max 和 min。一些模块可能会使用更加复杂的聚合函数，比如 lstm
                  bias=True,
-                 norm=None, #norm 是用于特征归一化的可调用函数。在SAGEConv论文里，归一化可以是L2归一化: hv=hv/||h||^2。
+                 norm=None, # norm 是用于特征归一化的可调用函数。在SAGEConv论文里，归一化可以是L2归一化: hv=hv/||h||^2。
                  activation=None):
         super(SAGEConv, self).__init__()
 
-        self._in_src_feats, self._in_dst_feats = expand_as_pair(in_feats) #输入维度可以分为源节点特征维度和目标节点特征维度
+        self._in_src_feats, self._in_dst_feats = expand_as_pair(in_feats)  # 输入维度可以分为源节点特征维度和目标节点特征维度
         self._out_feats = out_feats
         self._aggre_type = aggregator_type
         self.norm = norm
@@ -206,9 +198,9 @@ class SAGEConv(nn.Module):
 
 SAGEConv中，子模块根据聚合类型而有所不同。这些模块是纯PyTorch NN模块，例如 nn.Linear、 nn.LSTM 等。 构造函数的最后调用了 reset_parameters() 进行权重初始化。
 
-**2.2.2 forward函数**
+#### 2.2.2 forward函数
 
-2.2.2.1 首先会检查输入图对象是否规范
+##### 2.2.2.1 首先会检查输入图对象是否规范
 
 forward() 函数需要处理输入的许多极端情况，这些情况可能导致计算和消息传递中的值无效。 比如在 GraphConv 等conv模块中，DGL会检查输入图中是否有入度为0的节点。 
 
@@ -217,7 +209,6 @@ forward() 函数需要处理输入的许多极端情况，这些情况可能导�
 但是，在 SAGEConv 模块中，被聚合的特征将会与节点的初始特征拼接起来， forward() 函数的输出不会全为0。在这种情况下，无需进行此类检验。
 
 ```markdown
-
 def forward(self, graph, feat):
     with graph.local_scope():
         # 指定图类型，然后根据图类型扩展输入特征
@@ -230,10 +221,9 @@ def forward(self, graph, feat):
 
 在小批次训练中，计算应用于给定的一堆目标节点所采样的子图。子图在DGL中称为区块(block)。 在区块创建的阶段，dst nodes 位于节点列表的最前面。通过索引 [0:g.number_of_dst_nodes()] 可以找到 feat_dst。
 
-2.2.2.2 消息聚合和传递
+##### 2.2.2.2 消息聚合和传递
 
 ```markdown
-
 import dgl.function as fn
 import torch.nn.functional as F
 from dgl.utils import check_eq_shape
@@ -264,13 +254,118 @@ else:
     rst = self.fc_self(h_self) + self.fc_neigh(h_neigh)
 ```
 
-**2.2.3 异构图**
+##### 2.2.2.3 更新特征
 
+```markdown
+# 激活函数
+if self.activation is not None:
+    rst = self.activation(rst)
+# 归一化
+if self.norm is not None:
+    rst = self.norm(rst)
+return rst
+```
 
+#### 2.2.3 异构图
+
+HeteroGraphConv的实现逻辑可以不搞那么懂，因为确实比较麻烦，看懂下面的代码，懂得如何构建HeteroGraphConv类即可。
+
+```markdown
+import torch.nn as nn
+
+class HeteroGraphConv(nn.Module):
+    def __init__(self, mods, aggregate='sum'):
+        super(HeteroGraphConv, self).__init__()
+        self.mods = nn.ModuleDict(mods)
+        if isinstance(aggregate, str):
+            # 获取聚合函数的内部函数
+            self.agg_fn = get_aggregate_fn(aggregate)
+        else:
+            self.agg_fn = aggregate
+```
 
 ### 2.3 Training
 
-### 2.4 Mini-batch Training
+以GraphSAGE为例：
+
+#### 2.3.1 结点预测
+
+先搭建模型
+
+```markdown
+# 构建一个2层的GNN模型
+import dgl.nn as dglnn
+import torch.nn as nn
+import torch.nn.functional as F
+class SAGE(nn.Module):
+    def __init__(self, in_feats, hid_feats, out_feats):
+        super().__init__()
+        # 实例化SAGEConv，in_feats是输入特征的维度，out_feats是输出特征的维度，aggregator_type是聚合函数的类型
+        self.conv1 = dglnn.SAGEConv(
+            in_feats=in_feats, out_feats=hid_feats, aggregator_type='mean')
+        self.conv2 = dglnn.SAGEConv(
+            in_feats=hid_feats, out_feats=out_feats, aggregator_type='mean')
+
+    def forward(self, graph, inputs):
+        # 输入是节点的特征
+        h = self.conv1(graph, inputs)
+        h = F.relu(h) # 卷积之后一个ReLU激活
+        h = self.conv2(graph, h)
+        return h
+```
+
+关于DGL内置图卷积模块的完整列表，读者可以参考 [dgl.nn](https://docs.dgl.ai/api/python/nn.html#apinn)。
+
+模型训练
+
+全图(使用所有的节点和边的特征)上的训练只需要使用上面定义的模型进行前向传播计算，并通过在训练节点上比较预测和真实标签来计算损失，从而完成后向传播。
+
+```markdown
+node_features = graph.ndata['feat']
+node_labels = graph.ndata['label']
+train_mask = graph.ndata['train_mask']
+valid_mask = graph.ndata['val_mask']
+test_mask = graph.ndata['test_mask']
+n_features = node_features.shape[1]
+n_labels = int(node_labels.max().item() + 1)
+```
+
+评估过程
+
+```markdown
+def evaluate(model, graph, features, labels, mask):
+    model.eval()
+    with torch.no_grad():
+        logits = model(graph, features)
+        logits = logits[mask]
+        labels = labels[mask]
+        _, indices = torch.max(logits, dim=1)
+        correct = torch.sum(indices == labels)
+        return correct.item() * 1.0 / len(labels)
+```
+
+Training 过程
+
+```markdown
+model = SAGE(in_feats=n_features, hid_feats=100, out_feats=n_labels)
+opt = torch.optim.Adam(model.parameters())
+
+for epoch in range(10):
+    model.train()
+    # 使用所有节点(全图)进行前向传播计算
+    logits = model(graph, node_features)
+    # 计算损失值
+    loss = F.cross_entropy(logits[train_mask], node_labels[train_mask])
+    # 计算验证集的准确度
+    acc = evaluate(model, graph, node_features, node_labels, valid_mask)
+    # 进行反向传播计算
+    opt.zero_grad()
+    loss.backward()
+    opt.step()
+    print(loss.item())
+
+    # 如果需要的话，保存训练好的模型。本例中省略。
+```
 
 ## 基于OGB 的数据处理过程
 
