@@ -622,14 +622,197 @@ for epoch in range(10):
 
 什么叫链接预测？
 
-预测给定节点之间是否存在边。
+就是说预测给定节点之间是否存在边。
 
 训练一个链接预测模型涉及到比对两个相连接节点之间的得分与任意一对节点之间的得分的差异。 
 
-例如，给定一条连接 u 和 v 的边，一个好的模型希望 u 和 v 之间的得分要高于 u 和从一个任意的噪声分布 v'∼Pn(v) 中所采样的节点 v' 之间的得分。 这样的方法称作 负采样。
+例如，给定一条连接 u 和 v 的边，一个好的模型希望 u 和 v 之间的得分要高于 u 和从一个任意的噪声分布 v'∼Pn(v) 中所采样的节点 v' 之间的得分。 这样的方法称作 **负采样**。
 
+边得分可以如下方式计算：
 
+```markdown
+class DotProductPredictor(nn.Module):
+    def forward(self, graph, h):
+        # h是计算出的节点表示
+        with graph.local_scope():
+            graph.ndata['h'] = h
+            graph.apply_edges(fn.u_dot_v('h', 'h', 'score'))
+            return graph.edata['score']
+```
 
-## 基于OGB 的数据处理过程
+许多损失函数都可以实现上述目标，包括但不限于交叉熵损失、贝叶斯个性化排序损失、间隔损失。
 
-## 基于DGL的经典示例代码解析
+因为上述的得分预测模型在图上进行计算，用户需要将负采样的样本表示为另外一个图， 其中包含所有负采样的节点对作为边。
+
+下面的例子展示了将负采样的样本表示为一个图。每一条边 (u,v) 都有 k 个对应的负采样样本 (u,vi)，其中 vi 是从均匀分布中采样的。
+
+```markdown
+def construct_negative_graph(graph, k):
+    src, dst = graph.edges()
+
+    neg_src = src.repeat_interleave(k)
+    neg_dst = torch.randint(0, graph.num_nodes(), (len(src) * k,))
+    return dgl.graph((neg_src, neg_dst), num_nodes=graph.num_nodes())
+```
+
+预测边得分的模型和边分类/回归模型中的预测边得分模型相同
+
+```markdown
+class Model(nn.Module):
+    def __init__(self, in_features, hidden_features, out_features):
+        super().__init__()
+        self.sage = SAGE(in_features, hidden_features, out_features)
+        self.pred = DotProductPredictor()
+    def forward(self, g, neg_g, x):
+        h = self.sage(g, x)
+        return self.pred(g, h), self.pred(neg_g, h)
+```
+
+训练的循环部分里会重复构建负采样图并计算损失函数值。
+
+```markdown
+def compute_loss(pos_score, neg_score):
+    # 间隔损失
+    n_edges = pos_score.shape[0]
+    return (1 - pos_score.unsqueeze(1) + neg_score.view(n_edges, -1)).clamp(min=0).mean()
+
+node_features = graph.ndata['feat']
+n_features = node_features.shape[1]
+k = 5
+model = Model(n_features, 100, 100)
+opt = torch.optim.Adam(model.parameters())
+for epoch in range(10):
+    negative_graph = construct_negative_graph(graph, k)
+    pos_score, neg_score = model(graph, negative_graph, node_features)
+    loss = compute_loss(pos_score, neg_score)
+    opt.zero_grad()
+    loss.backward()
+    opt.step()
+    print(loss.item())
+# 获取embedding
+node_embeddings = model.sage(graph, node_features)
+```
+
+异构图上的链接预测和同构图上的链接预测没有太大区别，例如，为某一种边类型，用户可以重复使用 异构图上的边预测模型的训练 里的 HeteroDotProductPredictor 来计算节点间存在连接可能性的得分。
+
+```markdown
+def construct_negative_graph(graph, k, etype):
+    utype, _, vtype = etype
+    src, dst = graph.edges(etype=etype)
+    neg_src = src.repeat_interleave(k)
+    neg_dst = torch.randint(0, graph.num_nodes(vtype), (len(src) * k,))
+    return dgl.heterograph(
+        {etype: (neg_src, neg_dst)},
+        num_nodes_dict={ntype: graph.num_nodes(ntype) for ntype in graph.ntypes})
+```
+
+#### 2.3.4 整图分类
+
+整图分类与节点分类或链接预测的主要区别是：预测结果刻画了整个输入图的属性。 与之前的任务类似，用户还是在节点或边上进行消息传递。但不同的是，整图分类任务还需要得到整个图的表示。
+
+![image](https://user-images.githubusercontent.com/64308326/143832304-e4883005-af88-447d-bee9-ea7d5f8df3f7.png)
+
+从左至右，一般流程是：
+
+准备一个批次的图；
+
+在这个批次的图上进行消息传递以更新节点或边的特征；
+
+将一张图里的节点或边特征聚合成整张图的图表示；
+
+根据任务设计分类层。
+
+**批次的图**
+
+整图分类任务通常需要在很多图上进行训练。如果用户在训练模型时一次仅使用一张图，训练效率会很低。 借用深度学习实践中常用的小批次训练方法，用户可将多张图组成一个批次，在整个图批次上进行一次训练迭代。
+
+使用DGL，用户可将一系列的图建立成一个图批次。一个图批次可以被看作是一张大图，图中的每个连通子图对应一张原始小图。
+
+![image](https://user-images.githubusercontent.com/64308326/143832955-f157f7d1-a23d-47f8-a1fb-4c0b77e24d0b.png)
+
+**Readout**
+
+数据集中的每一张图都有它独特的结构和节点与边的特征。为了完成单个图的预测，通常会聚合并汇总单个图尽可能多的信息。 
+
+这类操作叫做“读出”。常见的聚合方法包括：对所有节点或边特征求和、取平均值、逐元素求最大值或最小值。
+
+**编写模型**
+
+模型的输入是带节点和边特征的批次化图。需要注意的是批次化图中的节点和边属性没有批次大小对应的维度。 
+
+首先，一个批次中不同的图是完全分开的，即任意两个图之间没有边连接。 根据这个良好的性质，所有消息传递函数(的计算)仍然具有相同的结果。
+
+其次，读出函数会分别作用在图批次中的每张图上。假设批次大小为 B，要聚合的特征大小为 D， 则图读出的张量形状为 (B,D)。
+
+```markdown
+import dgl
+import torch
+
+g1 = dgl.graph(([0, 1], [1, 0]))
+g1.ndata['h'] = torch.tensor([1., 2.])
+g2 = dgl.graph(([0, 1], [1, 2]))
+g2.ndata['h'] = torch.tensor([1., 2., 3.])
+
+dgl.readout_nodes(g1, 'h')
+# tensor([3.])  # 1 + 2
+
+bg = dgl.batch([g1, g2])
+dgl.readout_nodes(bg, 'h')
+# tensor([3., 6.])  # [1 + 2, 1 + 2 + 3]
+```
+
+**定义模型**
+
+```markdown
+import dgl.nn.pytorch as dglnn
+import torch.nn as nn
+
+class Classifier(nn.Module):
+    def __init__(self, in_dim, hidden_dim, n_classes):
+        super(Classifier, self).__init__()
+        self.conv1 = dglnn.GraphConv(in_dim, hidden_dim)
+        self.conv2 = dglnn.GraphConv(hidden_dim, hidden_dim)
+        self.classify = nn.Linear(hidden_dim, n_classes)
+
+    def forward(self, g, h):
+        # 应用图卷积和激活函数
+        h = F.relu(self.conv1(g, h))
+        h = F.relu(self.conv2(g, h))
+        with g.local_scope():
+            g.ndata['h'] = h
+            # 使用平均读出计算图表示
+            hg = dgl.mean_nodes(g, 'h')
+            return self.classify(hg)
+```
+
+**训练**
+
+```markdown
+import dgl.data
+dataset = dgl.data.GINDataset('MUTAG', False)
+
+from dgl.dataloading import GraphDataLoader
+dataloader = GraphDataLoader(
+    dataset,
+    batch_size=1024,
+    drop_last=False,
+    shuffle=True)
+'''
+
+'''markdown
+import torch.nn.functional as F
+
+# 这仅是个例子，特征尺寸是7
+model = Classifier(7, 20, 5)
+opt = torch.optim.Adam(model.parameters())
+for epoch in range(20):
+    for batched_graph, labels in dataloader:
+        feats = batched_graph.ndata['attr']
+        logits = model(batched_graph, feats)
+        loss = F.cross_entropy(logits, labels)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+```
+
+## 基于DGL&OGB数据库的经典示例代码解析
